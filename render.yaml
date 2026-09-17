@@ -1,0 +1,19 @@
+# Render "Infrastructure as Code" file — commit this to your repo, then in
+# Render dashboard choose "New +" -> "Blueprint" and point it at your repo.
+# This deploys the bot as a FREE web service using webhook mode.
+services:
+  - type: web
+    name: nexbot-telegram
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: BOT_TOKEN
+        sync: false          # set this manually in the Render dashboard, never commit it
+      - key: OWNER_ID
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false          # set to https://<your-service-name>.onrender.com after first deploy
+      - key: DATABASE_URL
+        sync: false          # leave blank to use SQLite (fine for one small bot)
