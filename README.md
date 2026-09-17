@@ -48,13 +48,18 @@ Two things changed on most hosts in 2025–2026 that are worth knowing before yo
 ### Recommended free-cost setup: Render (compute) + Supabase (database)
 
 **Step 1 — Free Postgres on Supabase**
-1. Go to supabase.com → New Project (free tier, 500 MB, doesn't expire).
-2. Project Settings → Database → copy the "Connection string" (URI, with the password filled in).
-3. Turn it into this format for `.env`:
+1. Go to supabase.com (or database.new) → sign in → **New Project**. Give it a name, set a database password (save it somewhere), pick a region, click **Create new project**. Wait a minute or two while it provisions.
+2. Once the project dashboard opens, click the **Connect** button near the top of the page.
+3. In the panel that opens, choose **Session pooler** (not "Direct connection" — Render and most hosts only have IPv4, and Supabase's direct connection is IPv6-only on the free plan; the session pooler works over IPv4 and supports everything our bot needs).
+4. Copy that connection string. It looks like:
    ```
-   DATABASE_URL=postgresql+asyncpg://postgres:YOUR_PASSWORD@YOUR_HOST:5432/postgres
+   postgresql://postgres.xxxxxxxxxxxx:[YOUR-PASSWORD]@aws-x-xx-xxxx-x.pooler.supabase.com:5432/postgres
    ```
-   (Same string Supabase gives you, just with `postgresql+asyncpg://` at the front instead of `postgresql://`.)
+5. Replace `[YOUR-PASSWORD]` with the real database password from step 1, then turn it into this for `.env` (just add `+asyncpg` after `postgresql`):
+   ```
+   DATABASE_URL=postgresql+asyncpg://postgres.xxxxxxxxxxxx:YOUR_REAL_PASSWORD@aws-x-xx-xxxx-x.pooler.supabase.com:5432/postgres
+   ```
+   If you get an SSL-related connection error, add `?ssl=require` to the very end of that string.
 
 **Step 2 — Deploy to Render**
 1. Push this project to a GitHub repo (make sure `.env` is **not** committed — it's already in `.gitignore`).
@@ -101,4 +106,8 @@ render.yaml, Procfile     # Render deployment config
 - If a bot token is ever exposed, revoke and regenerate it immediately via BotFather.
 - `/broadcast` only works for the Telegram user ID in `OWNER_ID` — set this before you rely on it.
 - The webhook URL path includes your bot token as a shared secret so random requests can't inject fake Telegram updates; Render/most hosts serve everything over HTTPS by default.
-"# NexBot-Telegram" 
+
+## Troubleshooting
+
+**`ModuleNotFoundError: No module named 'psycopg2'` on deploy** — this means `DATABASE_URL` was a plain `postgresql://...` string. SQLAlchemy's *sync* engine defaults to `psycopg2` for that scheme, but this project uses the *async* engine, which needs `postgresql+asyncpg://...` instead. `bot/database/db.py` now auto-corrects this for you (adds `+asyncpg` automatically, and converts `sslmode=` to the `ssl=` style `asyncpg` expects), so simply redeploying with this updated code fixes it — you don't need to hand-edit the connection string.
+
